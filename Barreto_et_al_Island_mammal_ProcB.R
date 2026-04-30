@@ -257,12 +257,12 @@ library(lme4)
 library(visreg)
 library(MASS)
 
-island_data = read.table("Appendix_1.xlsx")
+island_data = read_excel("Documents/miniproject/Group_project/Appendix_2-dryad.xlsx")
 island_data_endemism = subset(island_data, island_data$SIE_mammal > 0)
 
 ## Check multicolinearity and relationship among predictors
 predictor = c("Area", "Current_isolation",	"Past_isolation",	"Climate_velocity",	"Temperature_mean",	"Temperature_sd",	"Precipitation_mean",
-              "Precipitation_sd",	"Elevation_sd",	"bioregion",	"bioregion_SIE")
+              "Precipitation_sd",	"Elevation_sd")
 # All islands
 island_data[,predictor] = apply(island_data[,predictor], 2, as.numeric)
 print(corrplot::corrplot(cor(island_data[,predictor]),
@@ -284,6 +284,8 @@ island_data[,predictor] = scale(island_data[,predictor])
 
 # Species richness
 island_data$Richness_mammal_with0 <- island_data$Richness_mammal-1
+island_data$bioregion <- as.factor(island_data$bioregion)
+
 final_model_glmmTMB_Richness_mammal = glmmTMB(Richness_mammal~Area*Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
                                        Precipitation_sd + Precipitation_mean + Elevation_sd + (1|bioregion) +
                                        (0+Area*Current_isolation|bioregion) + (0+Temperature_mean|bioregion) + (0+Temperature_sd|bioregion) +
@@ -301,7 +303,8 @@ final_model_glmmTMB_Richness_nonVol = glmmTMB(Richness_nonVol~Area*Current_isola
                                           (0+Elevation_sd|bioregion), data = island_data, family = nbinom2)
 
 # Single Island Endemics (SIE)
-island_data_endemism$SIE_total_with0 <- island_data_endemism$SIE_total-1
+island_data_endemism$SIE_total_with0 <- island_data_endemism$SIE_mammal-1
+
 island_data_endemism[,predictor] = scale(island_data_endemism[,predictor])
 
 final_model_SIE_total = glm.nb(SIE_total_with0~Area+Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
@@ -322,7 +325,7 @@ plot_models(final_model_SIE_total, final_model_SIE_bats,final_model_SIE_nonVol)
 
 
 # pSIE
-final_model_pSIE_total = glmer(pSIE_total~Area+Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
+final_model_pSIE_total = glmer(pSIE_mammal~Area+Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
                                          Precipitation_sd + Precipitation_mean + Elevation_sd + (1|bioregion_SIE) + (0+Current_isolation|bioregion_SIE) +
                                          (0+Area|bioregion_SIE) + (0+Temperature_mean|bioregion_SIE) + (0+Temperature_sd|bioregion_SIE) +
                                          (0+Past_isolation|bioregion_SIE) + (0+Climate_velocity|bioregion_SIE) + (0+Precipitation_sd|bioregion_SIE) + (0+Precipitation_mean|bioregion_SIE) +
