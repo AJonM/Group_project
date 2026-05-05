@@ -257,12 +257,12 @@ library(lme4)
 library(visreg)
 library(MASS)
 
-island_data = read.table("Appendix_1.xlsx")
+island_data = read_excel("Documents/miniproject/Group_project/Appendix_2-dryad.xlsx")
 island_data_endemism = subset(island_data, island_data$SIE_mammal > 0)
 
 ## Check multicolinearity and relationship among predictors
 predictor = c("Area", "Current_isolation",	"Past_isolation",	"Climate_velocity",	"Temperature_mean",	"Temperature_sd",	"Precipitation_mean",
-              "Precipitation_sd",	"Elevation_sd",	"bioregion",	"bioregion_SIE")
+              "Precipitation_sd",	"Elevation_sd")
 # All islands
 island_data[,predictor] = apply(island_data[,predictor], 2, as.numeric)
 print(corrplot::corrplot(cor(island_data[,predictor]),
@@ -284,6 +284,8 @@ island_data[,predictor] = scale(island_data[,predictor])
 
 # Species richness
 island_data$Richness_mammal_with0 <- island_data$Richness_mammal-1
+island_data$bioregion <- as.factor(island_data$bioregion)
+
 final_model_glmmTMB_Richness_mammal = glmmTMB(Richness_mammal~Area*Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
                                        Precipitation_sd + Precipitation_mean + Elevation_sd + (1|bioregion) +
                                        (0+Area*Current_isolation|bioregion) + (0+Temperature_mean|bioregion) + (0+Temperature_sd|bioregion) +
@@ -301,7 +303,9 @@ final_model_glmmTMB_Richness_nonVol = glmmTMB(Richness_nonVol~Area*Current_isola
                                           (0+Elevation_sd|bioregion), data = island_data, family = nbinom2)
 
 # Single Island Endemics (SIE)
-island_data_endemism$SIE_total_with0 <- island_data_endemism$SIE_total-1
+#changed to mammal
+island_data_endemism$SIE_total_with0 <- island_data_endemism$SIE_mammal-1
+
 island_data_endemism[,predictor] = scale(island_data_endemism[,predictor])
 
 final_model_SIE_total = glm.nb(SIE_total_with0~Area+Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
@@ -322,7 +326,7 @@ plot_models(final_model_SIE_total, final_model_SIE_bats,final_model_SIE_nonVol)
 
 
 # pSIE
-final_model_pSIE_total = glmer(pSIE_total~Area+Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
+final_model_pSIE_total = glmer(pSIE_mammal~Area+Current_isolation + Temperature_mean + Temperature_sd + Past_isolation + Climate_velocity +
                                          Precipitation_sd + Precipitation_mean + Elevation_sd + (1|bioregion_SIE) + (0+Current_isolation|bioregion_SIE) +
                                          (0+Area|bioregion_SIE) + (0+Temperature_mean|bioregion_SIE) + (0+Temperature_sd|bioregion_SIE) +
                                          (0+Past_isolation|bioregion_SIE) + (0+Climate_velocity|bioregion_SIE) + (0+Precipitation_sd|bioregion_SIE) + (0+Precipitation_mean|bioregion_SIE) +
@@ -409,8 +413,9 @@ for(i in 1:length(final_model)){
 
 # Plot all models coefficients
 # By SR, SIE, pSIE
-SR = plot_models(final_model_glmer_Richness_mammal,
-                final_model_glmer_Richness_bat,
+#Put in correct model names
+SR = plot_models(final_model_glmmTMB_Richness_mammal,
+                 final_model_glmmTMB_Richness_bat,
                 final_model_glmmTMB_Richness_nonVol,
             transform = NULL,
             colors = c("tomato1", "red2", "red4"),
@@ -595,24 +600,35 @@ p8 = ggboxplot(island_data, x = "occupancy", y = "Elevation_sd", ylab = "Elevati
   ggtitle("Elevation sd") + theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold"))
 
 # Latitude
-diff_latitude = lm(Lat_centroid ~occupancy, data = island_data) 
+#changed to Latitude_centroid
+diff_latitude = lm(Latitude_centroid ~occupancy, data = island_data) 
 summary(diff_latitude)
 anova(diff_latitude)
 library(multcomp)
 PostHocTeste=glht(diff_latitude,linfct = mcp(occupancy = "Tukey"))
 summary(PostHocTeste)
-p9= ggboxplot(island_data, x = "occupancy", y = "Lat_centroid", ylab = "Latitude", xlab = "",
+p9= ggboxplot(island_data, x = "occupancy", y = "Latitude_centroid", ylab = "Latitude", xlab = "",
               color = "occupancy", palette =c("red3", "blue3", "green3")) +
   stat_compare_means(comparisons = my_comparisons,label = "p.signif") + 
   ggtitle("Lattitude") + theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold"))
 
-ggarrange(p1,p2,p3,p4,p5,p6,p7,p8,p9, p10, nrow = 3, ncol = 4, common.legend = T)
 
+
+ggarrange(p1,p2,p3,p4,p5,p6,p7,p8, p9, p10, nrow = 3, ncol = 4, common.legend = T)
+#removed p10, cause it doesnt exist.
 
 ## Plot coefficients per realm (bubble plot)
 ## SR total
 library(reshape)
-coefs = coefficients(final_model_glmer_Richness_mammal)[[1]][,-1]
+
+#changed final_mode... name, bc it was wrong
+
+#Doesnt work anymore!
+
+
+
+coefs = coefficients(final_model_glmmTMB_Richness_mammal)[[1]][,-1]
+
 colnames(coefs) = c("Area", "SLMP", "Temperature mean", "Temperature sd", "Past_isolation",
                     "CCVT", "Precipitation sd", "Precipitation mean", "Elevation sd", "Area*SLMP")
 coefs = cbind(coefs, rownames(coefs))
@@ -636,7 +652,7 @@ ggplot(coefs, aes(variable, realm)) + ggtitle("SR total") +
 
 ## SR bats
 library(reshape)
-coefs = coefficients(final_model_glmer_Richness_bat)[[1]][,-1]
+coefs = coefficients(final_model_glmmTMB_Richness_bat)[[1]][,-1]
 colnames(coefs) = c("Area", "SLMP", "Temperature mean", "Temperature sd", "Past_isolation",
                     "CCVT", "Precipitation sd", "Precipitation mean", "Elevation sd", "Area*SLMP")
 coefs = cbind(coefs, rownames(coefs))
@@ -723,14 +739,19 @@ ggplot(coefs, aes(variable, realm)) + ggtitle("pSIE bats") +
   scale_fill_manual(values=c("blue3", "red3")) + scale_color_manual(values=c("blue3", "red3"))+ 
   theme(axis.text.x = element_text(angle = 45, colour = "black", size = 12), axis.text.y = element_text(colour = "black", size = 12))
 
+
 ## pSIE non-flying
 library(reshape)
+
 coefs = coefficients(final_model_pSIE_nonVol)[[1]][,-1]
 colnames(coefs) = c("Area", "SLMP", "Temperature mean", "Temperature sd", "Past_isolation",
                     "CCVT", "Precipitation sd", "Precipitation mean", "Elevation sd")
 coefs = cbind(coefs, rownames(coefs))
 colnames(coefs)[ncol(coefs)] = "realm"
 coefs <- melt(coefs, id.vars = c('realm'))
+
+
+
 coefs$valueDiverging = abs(coefs$value)
 coefs$valueDiscrete = ifelse(coefs$value > 0, "Positive", "Negative")
 coefs$variable <- as.character(coefs$variable)
@@ -756,6 +777,7 @@ plot(continents)
 
 library(rworldmap)
 world <- getMap(resolution = "less islands")
+
 world <- spTransform(world, crs(PNAS_island_subset))
 world <- world[-which(world$REGION %in% "Antarctica"),]
 world <- aggregate(world, "REGION")
@@ -809,7 +831,7 @@ ggplot(PNAS_island_subset@data, aes(Longitude, Latitude)) + theme_void() +
 dev.off()
 
 # Endemism
-island_data_endemism$Latitude <- round(island_data_endemism$Lat_centroid,0)
+island_data_endemism$Latitude <- round(island_data_endemism$Latitude_centroid,0)
 island_data_endemism$Longitude <- round(island_data_endemism$Long_centroid,0)
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 library(classInt)
@@ -910,3 +932,4 @@ for(i in 1:length(variables)){
   hist(island_data[,variables[i]], xlab = variables[i], ylab = "Frequency", main = variables[i])
 }
 dev.off()
+
